@@ -1,0 +1,287 @@
+use sdl2::{
+    pixels::Color,
+    rect::{Point, Rect},
+    render::Canvas,
+    video::Window,
+};
+
+use crate::state::{MAP_HEIGHT, MAP_WIDTH};
+
+use crate::state::Player;
+
+const MINIMAP_CELL_SIZE: u32 = 4; // Size of each cell in the minimap
+const MINIMAP_PADDING: i32 = 20; // Padding from the edges of the screen
+
+fn draw_fps(canvas: &mut Canvas<Window>, fps: u32, screen_width: u32) {
+    // Draw FPS text in the top right corner
+    canvas.set_draw_color(Color::RGB(255, 255, 0));
+    let fps_text = format!("FPS: {}", fps);
+    let text_width = fps_text.len() as i32 * 8; // Approximate width based on character count
+    let text_x = screen_width as i32 - text_width - MINIMAP_PADDING;
+
+    // Draw each character manually since we don't have TTF support
+    for (i, c) in fps_text.chars().enumerate() {
+        let x = text_x + i as i32 * 8;
+        let y = MINIMAP_PADDING;
+
+        // Simple pixel representation of characters
+        match c {
+            'F' => {
+                canvas
+                    .draw_line(Point::new(x, y), Point::new(x + 6, y))
+                    .unwrap();
+                canvas
+                    .draw_line(Point::new(x, y), Point::new(x, y + 8))
+                    .unwrap();
+                canvas
+                    .draw_line(Point::new(x, y + 4), Point::new(x + 4, y + 4))
+                    .unwrap();
+            }
+            'P' => {
+                canvas
+                    .draw_line(Point::new(x, y), Point::new(x + 6, y))
+                    .unwrap();
+                canvas
+                    .draw_line(Point::new(x, y), Point::new(x, y + 8))
+                    .unwrap();
+                canvas
+                    .draw_line(Point::new(x, y + 4), Point::new(x + 6, y + 4))
+                    .unwrap();
+                canvas
+                    .draw_line(Point::new(x + 6, y), Point::new(x + 6, y + 4))
+                    .unwrap();
+            }
+            'S' => {
+                canvas
+                    .draw_line(Point::new(x, y), Point::new(x + 6, y))
+                    .unwrap();
+                canvas
+                    .draw_line(Point::new(x, y), Point::new(x, y + 4))
+                    .unwrap();
+                canvas
+                    .draw_line(Point::new(x, y + 4), Point::new(x + 6, y + 4))
+                    .unwrap();
+                canvas
+                    .draw_line(Point::new(x + 6, y + 4), Point::new(x + 6, y + 8))
+                    .unwrap();
+                canvas
+                    .draw_line(Point::new(x, y + 8), Point::new(x + 6, y + 8))
+                    .unwrap();
+            }
+            ':' => {
+                canvas.draw_point(Point::new(x + 3, y + 2)).unwrap();
+                canvas.draw_point(Point::new(x + 3, y + 6)).unwrap();
+            }
+            c if c.is_digit(10) => {
+                let n = c.to_digit(10).unwrap();
+                if n != 1 {
+                    canvas
+                        .draw_line(Point::new(x, y), Point::new(x + 6, y))
+                        .unwrap();
+                }
+                if n != 1 && n != 7 {
+                    canvas
+                        .draw_line(Point::new(x, y + 8), Point::new(x + 6, y + 8))
+                        .unwrap();
+                }
+                if n != 5 && n != 6 {
+                    canvas
+                        .draw_line(Point::new(x + 6, y), Point::new(x + 6, y + 4))
+                        .unwrap();
+                }
+                if n != 2 {
+                    canvas
+                        .draw_line(Point::new(x + 6, y + 4), Point::new(x + 6, y + 8))
+                        .unwrap();
+                }
+                if n != 1 && n != 2 && n != 3 && n != 7 {
+                    canvas
+                        .draw_line(Point::new(x, y + 4), Point::new(x, y + 8))
+                        .unwrap();
+                }
+                if n != 1 && n != 3 && n != 4 && n != 5 && n != 7 && n != 9 {
+                    canvas
+                        .draw_line(Point::new(x, y), Point::new(x, y + 4))
+                        .unwrap();
+                }
+                if n != 0 && n != 1 && n != 7 {
+                    canvas
+                        .draw_line(Point::new(x, y + 4), Point::new(x + 6, y + 4))
+                        .unwrap();
+                }
+            }
+            _ => {}
+        }
+    }
+}
+
+fn draw_minimap(
+    canvas: &mut Canvas<Window>,
+    player: &Player,
+    map: &[[u8; MAP_WIDTH]; MAP_HEIGHT],
+    screen_width: u32,
+    screen_height: u32,
+) {
+    let minimap_width = (MAP_WIDTH as u32 * MINIMAP_CELL_SIZE) as i32;
+    let minimap_height = (MAP_HEIGHT as u32 * MINIMAP_CELL_SIZE) as i32;
+
+    // Position minimap at bottom right
+    let minimap_x = screen_width as i32 - minimap_width - MINIMAP_PADDING;
+    let minimap_y = screen_height as i32 - minimap_height - MINIMAP_PADDING;
+
+    // Draw map cells
+    for y in 0..MAP_HEIGHT {
+        for x in 0..MAP_WIDTH {
+            let cell_x = minimap_x + (x as i32 * MINIMAP_CELL_SIZE as i32);
+            let cell_y = minimap_y + (y as i32 * MINIMAP_CELL_SIZE as i32);
+
+            let color = if map[y][x] == 1 {
+                Color::RGB(128, 128, 128) // Wall color
+            } else {
+                Color::RGB(32, 32, 32) // Floor color
+            };
+
+            canvas.set_draw_color(color);
+            canvas
+                .fill_rect(Rect::new(
+                    cell_x,
+                    cell_y,
+                    MINIMAP_CELL_SIZE,
+                    MINIMAP_CELL_SIZE,
+                ))
+                .unwrap();
+        }
+    }
+
+    // Draw player position
+    let player_size = (MINIMAP_CELL_SIZE as f64 * 0.8) as u32;
+    let player_x = minimap_x + (player.x * MINIMAP_CELL_SIZE as f64) as i32;
+    let player_y = minimap_y + (player.y * MINIMAP_CELL_SIZE as f64) as i32;
+
+    canvas.set_draw_color(Color::RGB(255, 0, 0));
+    canvas
+        .fill_rect(Rect::new(
+            player_x - (player_size / 2) as i32,
+            player_y - (player_size / 2) as i32,
+            player_size,
+            player_size,
+        ))
+        .unwrap();
+
+    // Draw player direction line
+    let dir_length = MINIMAP_CELL_SIZE as f64 * 1.5;
+    let dir_end_x = player_x + (player.dir_x * dir_length) as i32;
+    let dir_end_y = player_y + (player.dir_y * dir_length) as i32;
+
+    canvas.set_draw_color(Color::RGB(255, 255, 0));
+    canvas
+        .draw_line(
+            Point::new(player_x, player_y),
+            Point::new(dir_end_x, dir_end_y),
+        )
+        .unwrap();
+}
+
+pub fn render(
+    canvas: &mut Canvas<Window>,
+    player: &Player,
+    map: &[[u8; MAP_WIDTH]; MAP_HEIGHT],
+    fps: u32,
+) {
+    let screen_width = 1280;
+    let screen_height = 720;
+
+    for x in 0..screen_width {
+        let camera_x = 2.0 * x as f64 / screen_width as f64 - 1.0;
+
+        let ray_dir_x = player.dir_x + player.plane_x * camera_x;
+        let ray_dir_y = player.dir_y + player.plane_y * camera_x;
+
+        // Map square the ray is in
+        let mut map_x = player.x.floor() as i32;
+        let mut map_y = player.y.floor() as i32;
+
+        // Distance to next x or y side
+        let delta_dist_x = if ray_dir_x == 0.0 {
+            1e30
+        } else {
+            (1.0 / ray_dir_x).abs()
+        };
+        let delta_dist_y = if ray_dir_y == 0.0 {
+            1e30
+        } else {
+            (1.0 / ray_dir_y).abs()
+        };
+
+        // Step direction and initial side distances
+        let (step_x, mut side_dist_x) = if ray_dir_x < 0.0 {
+            (-1, (player.x - map_x as f64) * delta_dist_x)
+        } else {
+            (1, (map_x as f64 + 1.0 - player.x) * delta_dist_x)
+        };
+        let (step_y, mut side_dist_y) = if ray_dir_y < 0.0 {
+            (-1, (player.y - map_y as f64) * delta_dist_y)
+        } else {
+            (1, (map_y as f64 + 1.0 - player.y) * delta_dist_y)
+        };
+
+        let mut hit = false;
+        let mut side = 0;
+
+        // Perform DDA
+        while !hit {
+            if side_dist_x < side_dist_y {
+                side_dist_x += delta_dist_x;
+                map_x += step_x;
+                side = 0;
+            } else {
+                side_dist_y += delta_dist_y;
+                map_y += step_y;
+                side = 1;
+            }
+
+            if map[map_y as usize][map_x as usize] > 0 {
+                hit = true;
+            }
+        }
+
+        // Calculate distance
+        let perp_wall_dist = if side == 0 {
+            (map_x as f64 - player.x + (1.0 - step_x as f64) / 2.0) / ray_dir_x
+        } else {
+            (map_y as f64 - player.y + (1.0 - step_y as f64) / 2.0) / ray_dir_y
+        };
+
+        // Clamp line_height to prevent overflow
+        let line_height = ((screen_height as f64 / perp_wall_dist) as i32).min(i32::MAX / 2);
+        let half_line_height = line_height / 2;
+        let half_screen_height = screen_height as i32 / 2;
+        let draw_start = (half_screen_height - half_line_height).max(0);
+        let draw_end = (half_screen_height + half_line_height).min(screen_height as i32 - 1);
+
+        // Draw vertical line
+        let color = if side == 0 {
+            Color::RGB(255, 255, 255)
+        } else {
+            Color::RGB(160, 160, 160)
+        };
+
+        canvas.set_draw_color(color);
+        let _ = canvas.draw_line(
+            Point::new(x as i32, draw_start),
+            Point::new(x as i32, draw_end),
+        );
+    }
+
+    // Draw minimap after 3D rendering
+    draw_minimap(
+        canvas,
+        player,
+        map,
+        screen_width as u32,
+        screen_height as u32,
+    );
+
+    // Draw FPS counter
+    draw_fps(canvas, fps, screen_width as u32);
+}
