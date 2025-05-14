@@ -8,6 +8,8 @@ if [ "$(uname)" = "Darwin" ]; then
     export LDFLAGS="-L/opt/homebrew/lib"
 fi
 
+export RUST_LOG=info
+
 cargo build --bin server --release
 cargo build --bin client --release
 
