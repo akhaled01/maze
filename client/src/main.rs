@@ -19,6 +19,7 @@ fn main() -> Result<(), String> {
     let window = video_subsystem
         .window("Ropher Faggots", 1280, 720)
         .position_centered()
+        .opengl()
         .build()
         .map_err(|e| e.to_string())?;
 

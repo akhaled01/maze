@@ -237,7 +237,7 @@ pub fn render(
     let screen_width = 1280;
     let screen_height = 720;
 
-    draw_skybox(canvas, skybox, player, screen_width, screen_height);
+    let _ = draw_skybox(canvas, skybox, player, screen_width, screen_height);
 
     for x in 0..screen_width {
         let camera_x = 2.0 * x as f64 / screen_width as f64 - 1.0;
