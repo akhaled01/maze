@@ -1,16 +1,61 @@
 use sdl2::{
     pixels::Color,
     rect::{Point, Rect},
-    render::Canvas,
-    video::Window,
+    render::{Canvas, Texture, TextureCreator},
+    image::{LoadTexture, InitFlag},
+    video::{Window, WindowContext},
 };
 
 use crate::state::{MAP_HEIGHT, MAP_WIDTH};
 
 use crate::state::Player;
 
+pub struct Skybox<'a> {
+    pub front: Texture<'a>,
+    pub back: Texture<'a>,
+    pub left: Texture<'a>,
+    pub right: Texture<'a>,
+    pub up: Texture<'a>,
+    pub down: Texture<'a>,
+}
+
+impl<'a> Skybox<'a> {
+    pub fn load(texture_creator: &'a TextureCreator<WindowContext>) -> Result<Self, String> {
+        Ok(Self {
+            front: texture_creator.load_texture("assets/textures/skybox/front.png")?,
+            back: texture_creator.load_texture("assets/textures/skybox/back.png")?,
+            left: texture_creator.load_texture("assets/textures/skybox/left.png")?,
+            right: texture_creator.load_texture("assets/textures/skybox/right.png")?,
+            up: texture_creator.load_texture("assets/textures/skybox/up.png")?,
+            down: texture_creator.load_texture("assets/textures/skybox/down.png")?,
+        })
+    }
+}
+
 const MINIMAP_CELL_SIZE: u32 = 4; // Size of each cell in the minimap
 const MINIMAP_PADDING: i32 = 20; // Padding from the edges of the screen
+
+pub fn draw_skybox(
+    canvas: &mut Canvas<Window>,
+    skybox: &Skybox,
+    player: &Player,
+    screen_width: u32,
+    screen_height: u32,
+) -> Result<(), String> {
+    let angle = player.dir_y.atan2(player.dir_x).to_degrees();
+    let texture = if angle >= -45.0 && angle < 45.0 {
+        &skybox.front
+    } else if angle >= 45.0 && angle < 135.0 {
+        &skybox.left
+    } else if angle >= -135.0 && angle < -45.0 {
+        &skybox.right
+    } else {
+        &skybox.back
+    };
+
+    canvas.copy(texture, None, Rect::new(0, 0, screen_width, screen_height / 2))?;
+    Ok(())
+}
 
 fn draw_fps(canvas: &mut Canvas<Window>, fps: u32, screen_width: u32) {
     // Draw FPS text in the top right corner
@@ -187,9 +232,12 @@ pub fn render(
     player: &Player,
     map: &[[u8; MAP_WIDTH]; MAP_HEIGHT],
     fps: u32,
+    skybox: &Skybox,
 ) {
     let screen_width = 1280;
     let screen_height = 720;
+
+    draw_skybox(canvas, skybox, player, screen_width, screen_height);
 
     for x in 0..screen_width {
         let camera_x = 2.0 * x as f64 / screen_width as f64 - 1.0;

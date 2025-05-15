@@ -1,4 +1,4 @@
-use sdl2::event::Event;
+use sdl2::{event::Event, image::InitFlag};
 use sdl2::keyboard::Keycode;
 use sdl2::pixels::Color;
 use std::time::{Duration, Instant};
@@ -6,6 +6,7 @@ use std::time::{Duration, Instant};
 mod state;
 mod graphics;
 mod input;
+mod utils;
 
 use state::{Player, MAZE_EASY};
 use graphics::render;
@@ -16,10 +17,14 @@ fn main() -> Result<(), String> {
     let sdl_context = sdl2::init()?;
     let video_subsystem = sdl_context.video()?;
     let window = video_subsystem
-        .window("Ropher", 1280, 720)
+        .window("Ropher Faggots", 1280, 720)
         .position_centered()
         .build()
         .map_err(|e| e.to_string())?;
+
+    let _gl_context = window.gl_create_context()?;
+    let gl_loader = |s| video_subsystem.gl_get_proc_address(s) as *const std::os::raw::c_void;
+    gl::load_with(gl_loader);
 
     let mut canvas = window
         .into_canvas()
@@ -33,6 +38,14 @@ fn main() -> Result<(), String> {
     // Enable relative mouse mode (captures mouse and hides cursor)
     let mouse_util = sdl_context.mouse();
     mouse_util.set_relative_mouse_mode(true);
+
+    // Ground textures settings
+    unsafe {
+        let ground_basecolor = utils::load_texture("assets/textures/ground/ground_basecolor.png", gl::TEXTURE0);
+        let ground_roughness = utils::load_texture("assets/textures/ground/ground_roughness.png", gl::TEXTURE1);
+        let ground_normal = utils::load_texture("assets/textures/ground/ground_normal.png", gl::TEXTURE2);
+        let ground_height = utils::load_texture("assets/textures/ground/ground_height.png", gl::TEXTURE3);
+    }
 
     // Initial player state
     let mut player = Player {
@@ -49,6 +62,11 @@ fn main() -> Result<(), String> {
     let mut fps_timer = Instant::now();
     let mut frame_count = 0;
     let mut current_fps = 0;
+
+    // Initialize Skybox Settings
+    let _image_context = sdl2::image::init(InitFlag::PNG)?;
+    let texture_creator = canvas.texture_creator();
+    let skybox = graphics::Skybox::load(&texture_creator)?;
 
     // Game Loop
     'running: loop {
@@ -77,7 +95,7 @@ fn main() -> Result<(), String> {
         canvas.clear();
 
         // Draw world using raycasting
-        render(&mut canvas, &player, &MAZE_EASY, current_fps);
+        render(&mut canvas, &player, &MAZE_EASY, current_fps, &skybox);
 
         // Present to screen
         canvas.present();
