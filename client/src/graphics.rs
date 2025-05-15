@@ -19,6 +19,7 @@ pub struct GLContext {
     pub shader_program: GLuint,
     pub vao: GLuint,
     pub textures: [GLuint; 3],
+    pub index_count: usize,
 }
 
 pub unsafe fn compile_shader(src: &str, shader_type: GLenum) -> GLuint {
@@ -109,6 +110,7 @@ pub unsafe fn init_gl_context(mesh: &Mesh) -> GLContext {
             shader_program,
             vao,
             textures,
+            index_count: mesh.indices.len(),
         }
     }
 }
