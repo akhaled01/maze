@@ -1,5 +1,13 @@
 use gl::types::*;
+use std::path::Path;
 use image::GenericImageView;
+
+pub fn load_image_bytes(path: &str) -> Result<(u32, u32, Vec<u8>), String> {
+    let img = image::open(Path::new(path)).map_err(|e| format!("Image loading failed: {}", e))?.flipv().to_rgb8();
+    let (width, height) = img.dimensions();
+    let pixels = img.into_raw();
+    Ok((width, height, pixels))
+}
 
 pub unsafe fn load_texture(path: &str, unit: GLenum) -> GLuint {
     let img = image::open(path).expect("Failed to load texture");
