@@ -12,6 +12,7 @@ pub struct Engine {
     sdl_context: sdl2::Sdl,
     video_subsystem: sdl2::VideoSubsystem,
     _gl_context: sdl2::video::GLContext,
+    window: sdl2::video::Window,
     renderer: Renderer,
     resource_manager: ResourceManager,
     audio_manager: AudioManager,
@@ -46,7 +47,10 @@ impl Engine {
         window.gl_make_current(&gl_context).unwrap();
 
         // Enable VSync
-        video_subsystem.gl_set_swap_interval(sdl2::video::SwapInterval::VSync).unwrap();
+        //video_subsystem.gl_set_swap_interval(sdl2::video::SwapInterval::VSync).unwrap();
+
+        // Initialize OpenGL function pointers once
+        gl::load_with(|s| video_subsystem.gl_get_proc_address(s) as *const _);
 
         // Subsystem creation
         let renderer = Renderer::new();
@@ -59,6 +63,7 @@ impl Engine {
             sdl_context,
             video_subsystem,
             _gl_context: gl_context,
+            window,
             renderer,
             resource_manager,
             audio_manager,
@@ -112,7 +117,7 @@ impl Engine {
     }
 
     fn render(&mut self) {
-        self.renderer.run();
+        self.renderer.render(&self.window);
         // TODO: Pass actual game state/render data to renderer as conversion proceeds
     }
 }
