@@ -2,16 +2,19 @@ use std::collections::HashMap;
 use std::path::Path;
 use image::{DynamicImage, ImageReader as ImageReader};
 use anyhow::{Result, Context};
+use obj::{Obj, ObjData};
 
 pub struct ResourceManager {
     textures: HashMap<String, DynamicImage>,
-    // TODO: Add similar maps for audio, models, fonts, shaders, etc.
+    models: HashMap<String, ObjData>, // Store loaded OBJ data keyed by string
+    // TODO: Add similar maps for audio, fonts, shaders, etc.
 }
 
 impl ResourceManager {
     pub fn new() -> Self {
         Self {
             textures: HashMap::new(),
+            models: HashMap::new(),
         }
     }
 
@@ -41,4 +44,30 @@ impl ResourceManager {
     }
 
     // TODO: Implement similar methods for models, audio, fonts, and shaders as you convert their users.
+    pub fn load_model(&mut self, id: &str, rel_path: &str) -> Result<()> {
+        let path = Path::new("assets/models").join(rel_path);
+        let obj_data: ObjData = Obj::load(&path)
+            .with_context(|| format!("Failed to load OBJ file: {:?}", path))?
+            .data;
+        self.models.insert(id.to_string(), obj_data);
+        Ok(())
+    }
+
+    pub fn get_model(&self, id: &str) -> Option<&ModelType> {
+        self.models.get(id)
+    }
+
+    // --- Example: Bulk loading of all needed models and textures ---
+    pub fn load_all_assets(&mut self) -> Result<()> {
+        // Textures
+        // self.load_texture("ground_tex", "ground.png")?;
+        // self.load_texture("wall_tex", "wall.png")?;
+
+        // Models
+        self.load_model("ground", "/ground/ground.obj")?;
+        self.load_model("wall", "/wall/wall.obj")?;
+
+        // ...add more as needed...
+        Ok(())
+    }
 }

@@ -27,6 +27,7 @@ rusttype = "0.9.3"
 rand = "0.9.1"
 anyhow = "1.0.98"
 rodio = "0.20.1"
+obj = "0.14"
 
 [[bin]]
 name = "client"
