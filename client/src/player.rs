@@ -1,7 +1,7 @@
 use bevy::prelude::*;
 use bevy_rapier3d::prelude::*;
 use bevy::input::mouse::MouseMotion;
-use bevy::math::primitives::Capsule3d;
+use bevy::math::primitives::{Capsule3d, Cuboid, Sphere};
 
 use crate::level::{MAZE, MAP_WIDTH, MAP_HEIGHT};
 
@@ -11,6 +11,9 @@ pub struct Player;
 #[derive(Component)]
 pub struct PlayerCamera;
 
+#[derive(Component)]
+pub struct Bullet;
+
 const PLAYER_SPEED: f32 = 6.0;
 const MOUSE_SENSITIVITY: f32 = 0.15;
 const CAMERA_HEIGHT: f32 = 1.6;
@@ -18,7 +21,7 @@ const CAMERA_HEIGHT: f32 = 1.6;
 pub fn setup_player_systems(app: &mut App) {
     app
         .add_systems(Startup, spawn_player)
-        .add_systems(Update, (player_movement, player_camera_look));
+        .add_systems(Update, (player_movement, player_camera_look, shoot, move_projectiles));
 }
 
 pub fn spawn_player(
@@ -32,8 +35,13 @@ pub fn spawn_player(
     let world_x = spawn_x * cell_size - (MAP_WIDTH as f32 * cell_size) / 2.0 + cell_size / 2.0;
     let world_z = spawn_z * cell_size - (MAP_HEIGHT as f32 * cell_size) / 2.0 + cell_size / 2.0;
 
+    // Spawn player capsule
     let mesh = meshes.add(Mesh::from(Capsule3d::default()));
     let material = materials.add(Color::srgb(0.2, 0.5, 1.0));
+
+    // Spawn weapon as child (simple box for now)
+    let weapon_mesh = meshes.add(Mesh::from(Cuboid::new(0.2, 0.1, 0.5)));
+    let weapon_material = materials.add(Color::srgb(0.3, 0.3, 0.3));
 
     commands
         .spawn((
@@ -50,6 +58,12 @@ pub fn spawn_player(
                 Camera3d::default(),
                 Transform::from_xyz(0.0, 0.0, 0.0).looking_to(Vec3::X, Vec3::Y),
                 PlayerCamera,
+            ));
+            parent.spawn((
+                Mesh3d(weapon_mesh),
+                MeshMaterial3d(weapon_material),
+                Transform::from_xyz(0.5, 0.5, 1.0),
+                Name::new("Weapon"),
             ));
         });
 }
@@ -124,5 +138,68 @@ fn player_camera_look(
             let pitch = rot.1.clamp(-1.5, 1.5);
             cam_transform.rotation = Quat::from_euler(EulerRot::YXZ, rot.0, pitch, rot.2);
         }
+    }
+}
+
+// fn shoot(
+    // mut commands: Commands,
+    // keyboard: Res<ButtonInput<MouseButton>>,
+    // query: Query<(&Transform, &GlobalTransform), With<Player>>,
+    // mut meshes: ResMut<Assets<Mesh>>,
+    // mut materials: ResMut<Assets<StandardMaterial>>,
+// ) {
+//     if keyboard.just_pressed(MouseButton::Left) {
+//         for (transform, global_transform) in &query {
+//             // Spawn bullet
+//             let bullet_dir = global_transform.forward();
+//             let bullet_speed = 20.0;
+//             commands.spawn((
+//                 Mesh3d(meshes.add(Mesh::from(Sphere { radius: 0.05 }))),
+//                 MeshMaterial3d(materials.add(Color::srgb(1.0, 0.8, 0.1))),
+//                 Transform::from_translation(global_transform.translation() + bullet_dir * 1.2),
+//                 RigidBody::Dynamic,
+//                 Collider::ball(0.05),
+//                 Velocity {
+//                     linvel: bullet_dir * bullet_speed,
+//                     angvel: Vec3::ZERO,
+//                 },
+//                 Name::new("Bullet"),
+//             ));
+//         }
+//     }
+// }
+
+pub fn shoot(
+    mut commands: Commands,
+    keyboard: Res<ButtonInput<MouseButton>>,
+    query: Query<(&Transform), With<Player>>,
+    mut meshes: ResMut<Assets<Mesh>>,
+    mut materials: ResMut<Assets<StandardMaterial>>,
+) {
+    // Only handle one player for now
+    if let Ok(player_transform) = query.get_single() {
+        // Spawn the projectile at player position, moving in their forward direction
+        let forward = player_transform.forward(); // Vec3
+        let spawn_position = player_transform.translation + forward * 1.0; // Slightly ahead of player
+
+        commands.spawn((
+            Mesh3d(meshes.add(Mesh::from(Sphere { radius: 0.05 }))),
+            MeshMaterial3d(materials.add(Color::srgb(1.0, 0.8, 0.1))),
+            Transform::from_translation(spawn_position),
+            Bullet,
+            Velocity(forward * 20.0), // You'll need a velocity component for projectile movement
+        ));
+    }
+}
+
+#[derive(Component, Deref, DerefMut)]
+pub struct Velocity(pub Vec3);
+
+pub fn move_projectiles(
+    mut query: Query<(&mut Transform, &Velocity), With<Bullet>>,
+    time: Res<Time>,
+) {
+    for (mut transform, velocity) in &mut query {
+        transform.translation += **velocity * time.delta_secs();
     }
 }
