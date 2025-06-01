@@ -14,6 +14,9 @@ pub struct PlayerCamera;
 #[derive(Component)]
 pub struct Bullet;
 
+#[derive(Component)]
+pub struct BulletLifetime(pub f32); // seconds
+
 const PLAYER_SPEED: f32 = 6.0;
 const MOUSE_SENSITIVITY: f32 = 0.15;
 const CAMERA_HEIGHT: f32 = 1.6;
@@ -21,8 +24,31 @@ const CAMERA_HEIGHT: f32 = 1.6;
 pub fn setup_player_systems(app: &mut App) {
     app
         .add_systems(Startup, spawn_player)
-        .add_systems(Update, (player_movement, player_camera_look, shoot, move_projectiles));
+        .add_systems(Update, (
+            player_movement,
+            player_camera_look,
+            player_shooting_system,
+            projectile_movement_system,
+            bullet_lifetime_system,
+        ));
 }
+
+// #[derive(Resource)]
+// pub struct FireCooldown {
+//     timer: Timer,
+// }
+
+// impl Default for FireCooldown {
+//     fn default() -> Self {
+//         Self { timer: Timer::from_seconds(0.1, TimerMode::Repeating) }
+//     }
+// }
+
+#[derive(Component, Deref, DerefMut)]
+pub struct WeaponCooldown(pub f32);
+
+// How fast can you fire? (shots per second)
+const FIRE_RATE: f32 = 10.0; // 10 shots/sec
 
 pub fn spawn_player(
     mut commands: Commands,
@@ -45,20 +71,22 @@ pub fn spawn_player(
 
     commands
         .spawn((
+            Player,
+            WeaponCooldown(0.0),
             Mesh3d(mesh),
             MeshMaterial3d(material),
             Transform::from_xyz(world_x, CAMERA_HEIGHT, world_z),
             RigidBody::Dynamic,
             Collider::capsule_y(0.8, 0.5),
-            LockedAxes::ROTATION_LOCKED,
-            Player,
+            LockedAxes::ROTATION_LOCKED | LockedAxes::TRANSLATION_LOCKED_Y,
         ))
         .with_children(|parent| {
-            parent.spawn((
-                Camera3d::default(),
-                Transform::from_xyz(0.0, 0.0, 0.0).looking_to(Vec3::X, Vec3::Y),
-                PlayerCamera,
-            ));
+            // Enable below block of code to spawn a camera as child of player capsule (After commenting out Main Camera in main.rs)
+            // parent.spawn((
+            //     Camera3d::default(),
+            //     Transform::from_xyz(0.0, 0.0, 0.0).looking_to(Vec3::X, Vec3::Y),
+            //     PlayerCamera,
+            // ));
             parent.spawn((
                 Mesh3d(weapon_mesh),
                 MeshMaterial3d(weapon_material),
@@ -169,37 +197,158 @@ fn player_camera_look(
 //     }
 // }
 
-pub fn shoot(
+// pub fn shoot(
+//     mut commands: Commands,
+//     keyboard: Res<ButtonInput<MouseButton>>,
+//     query: Query<(&Transform), With<Player>>,
+    // mut meshes: ResMut<Assets<Mesh>>,
+    // mut materials: ResMut<Assets<StandardMaterial>>,
+// ) {
+//     // Only handle one player for now
+//     if let Ok(player_transform) = query.get_single() {
+//         // Spawn the projectile at player position, moving in their forward direction
+//         let forward = player_transform.forward(); // Vec3
+//         let spawn_position = player_transform.translation + forward * 1.0; // Slightly ahead of player
+
+//         commands.spawn((
+//             Mesh3d(meshes.add(Mesh::from(Sphere { radius: 0.05 }))),
+//             MeshMaterial3d(materials.add(Color::srgb(1.0, 0.8, 0.1))),
+//             Transform::from_translation(spawn_position),
+//             Bullet,
+//             Velocity(forward * 20.0), // You'll need a velocity component for projectile movement
+//         ));
+//     }
+// }
+
+// pub fn player_shooting_system(
+//     mut commands: Commands,
+//     time: Res<Time>,
+//     mouse_button_input: Res<ButtonInput<MouseButton>>,
+//     mut query: Query<(&mut Player, &GlobalTransform)>,
+// ) {
+//     for (mut player, global_transform) in query.iter_mut() {
+//         // Update the timer
+//         player.fire_timer.tick(time.delta());
+
+//         // Only allow shooting if timer finished and mouse is held
+//         if mouse_button_input.pressed(MouseButton::Left) && player.fire_timer.finished() {
+//             // Spawn projectile at camera/player position, going forward
+//             let transform = global_transform.compute_transform();
+//             let forward = transform.forward();
+//             let position = transform.translation + forward * 1.0; // slightly ahead of player
+
+//             commands.spawn((
+//                 Bullet,
+//                 Transform::from_translation(position).looking_to(forward, Vec3::Y),
+//                 // Add velocity as a component, etc
+//             ));
+
+//             // Reset the timer
+//             player.fire_timer.reset();
+//         }
+//     }
+// }
+
+// pub fn player_shooting_system(
+//     mut commands: Commands,
+//     buttons: Res<ButtonInput<MouseButton>>,
+//     time: Res<Time>,
+//     mut cooldown: ResMut<FireCooldown>,
+//     query: Query<(&Transform, &GlobalTransform), With<PlayerCamera>>,
+//     mut meshes: ResMut<Assets<Mesh>>,
+//     mut materials: ResMut<Assets<StandardMaterial>>,
+// ) {
+//     // Allow continuous shooting while LMB held down, and respect cooldown.
+//     cooldown.timer.tick(time.delta());
+//     if buttons.pressed(MouseButton::Left) && cooldown.timer.finished() {
+//         // Find player camera position & orientation
+//         if let Ok((transform, global_transform)) = query.get_single() {
+//             let spawn_pos = global_transform.translation();
+
+//             // "Forward" direction in Bevy is negative Z
+//             let forward = global_transform.forward();
+
+//             // Spawn the projectile (simple mesh or your projectile scene)
+//             commands.spawn((
+//                 Mesh3d(meshes.add(Mesh::from(Sphere { radius: 0.05 }))),
+//                 MeshMaterial3d(materials.add(Color::srgb(1.0, 0.8, 0.1))),
+//                 Bullet,
+//                 // Give it a velocity using Rapier
+//                 RigidBody::Dynamic,
+//                 Collider::ball(0.1), // Sphere collider as example
+//                 Velocity::linear(forward * 30.0), // Fast projectile
+//                 // Add despawn timer or similar if you want
+//             ));
+
+//             // Reset the cooldown timer
+//             cooldown.timer.reset();
+//         }
+//     }
+// }
+
+// SYSTEM: Handles rapid fire when holding left mouse
+pub fn player_shooting_system(
+    time: Res<Time>,
+    mouse: Res<ButtonInput<MouseButton>>,
+    mut query: Query<(&mut WeaponCooldown, &GlobalTransform), With<Player>>,
     mut commands: Commands,
-    keyboard: Res<ButtonInput<MouseButton>>,
-    query: Query<(&Transform), With<Player>>,
     mut meshes: ResMut<Assets<Mesh>>,
     mut materials: ResMut<Assets<StandardMaterial>>,
 ) {
-    // Only handle one player for now
-    if let Ok(player_transform) = query.get_single() {
-        // Spawn the projectile at player position, moving in their forward direction
-        let forward = player_transform.forward(); // Vec3
-        let spawn_position = player_transform.translation + forward * 1.0; // Slightly ahead of player
+    for (mut cooldown, global_transform) in &mut query {
+        // Decrease cooldown
+        **cooldown -= time.delta_secs();
 
-        commands.spawn((
-            Mesh3d(meshes.add(Mesh::from(Sphere { radius: 0.05 }))),
-            MeshMaterial3d(materials.add(Color::srgb(1.0, 0.8, 0.1))),
-            Transform::from_translation(spawn_position),
-            Bullet,
-            Velocity(forward * 20.0), // You'll need a velocity component for projectile movement
-        ));
+        if mouse.pressed(MouseButton::Left) && **cooldown <= 0.0 {
+            // Ready to shoot!
+            **cooldown = 1.0 / FIRE_RATE;
+
+            let spawn_pos = global_transform.translation();
+            let forward = global_transform.forward();
+            let right = global_transform.right();
+
+            // Spawn the projectile
+            commands.spawn((
+                Bullet,
+                Transform::from_translation(spawn_pos),
+                Velocity(right * 30.0), // Your projectile speed here
+                Mesh3d(meshes.add(Mesh::from(Sphere { radius: 0.50 }))),
+                MeshMaterial3d(materials.add(Color::srgb(1.0, 0.8, 0.1))),
+                // Rigid body: kinematic or dynamic
+                RigidBody::KinematicVelocityBased,
+                Collider::ball(0.5),
+                BulletLifetime(3.0),
+            ));
+
+            print!("Shoot bullet\n");
+
+            // Optionally, add mesh/render component here
+        }
+    }
+}
+
+fn bullet_lifetime_system(
+    mut commands: Commands,
+    time: Res<Time>,
+    mut query: Query<(Entity, &mut BulletLifetime)>
+) {
+    for (entity, mut lifetime) in &mut query {
+        lifetime.0 -= time.delta_secs();
+        if lifetime.0 <= 0.0 {
+            commands.entity(entity).despawn();
+        }
     }
 }
 
 #[derive(Component, Deref, DerefMut)]
 pub struct Velocity(pub Vec3);
 
-pub fn move_projectiles(
-    mut query: Query<(&mut Transform, &Velocity), With<Bullet>>,
+// SYSTEM: Moves projectiles each frame
+pub fn projectile_movement_system(
     time: Res<Time>,
+    mut query: Query<(&Velocity, &mut Transform), With<Bullet>>,
 ) {
-    for (mut transform, velocity) in &mut query {
+    for (velocity, mut transform) in &mut query {
         transform.translation += **velocity * time.delta_secs();
     }
 }

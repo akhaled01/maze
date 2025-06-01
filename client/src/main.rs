@@ -1,6 +1,7 @@
 use bevy::prelude::*;
 use bevy_rapier3d::prelude::*;
 use level::{spawn_ground, spawn_maze};
+//use crate::player::FireCooldown;
 
 mod level;
 mod players;
@@ -21,6 +22,7 @@ fn main() {
             ..default()
         }))
         .add_plugins(RapierPhysicsPlugin::<NoUserData>::default())
+        // .init_resource::<FireCooldown>()
         .insert_resource(ClearColor(Color::srgb(0.18, 0.22, 0.35)))
         .add_systems(Startup, setup)
         .add_systems(Startup, spawn_ground)
@@ -35,11 +37,11 @@ fn main() {
 
 fn setup(mut commands: Commands) {
     //Camera Settings
-    // commands.spawn((
-    //     Camera3d::default(),
-    //     Transform::from_xyz(0.0, 50.0, 50.0).looking_at(Vec3::ZERO, Vec3::Y),
-    //     GlobalTransform::default(),
-    // ));
+    commands.spawn((
+        Camera3d::default(),
+        Transform::from_xyz(0.0, 50.0, 50.0).looking_at(Vec3::ZERO, Vec3::Y),
+        GlobalTransform::default(),
+    ));
 
     //Light Settings
     commands.spawn((
