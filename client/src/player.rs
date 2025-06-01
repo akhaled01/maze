@@ -82,11 +82,11 @@ pub fn spawn_player(
         ))
         .with_children(|parent| {
             // Enable below block of code to spawn a camera as child of player capsule (After commenting out Main Camera in main.rs)
-            // parent.spawn((
-            //     Camera3d::default(),
-            //     Transform::from_xyz(0.0, 0.0, 0.0).looking_to(Vec3::X, Vec3::Y),
-            //     PlayerCamera,
-            // ));
+            parent.spawn((
+                Camera3d::default(),
+                Transform::from_xyz(0.0, 0.0, 0.0).looking_to(Vec3::X, Vec3::Y),
+                PlayerCamera,
+            ));
             parent.spawn((
                 Mesh3d(weapon_mesh),
                 MeshMaterial3d(weapon_material),
@@ -303,7 +303,7 @@ pub fn player_shooting_system(
             // Ready to shoot!
             **cooldown = 1.0 / FIRE_RATE;
 
-            let spawn_pos = global_transform.translation();
+            let spawn_pos = global_transform.translation() + Vec3::new(-3.0, -1.0, 0.0);
             let forward = global_transform.forward();
             let right = global_transform.right();
 
