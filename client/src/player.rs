@@ -244,7 +244,7 @@ use bevy_rapier3d::prelude::*;
 use crate::{
     camera_controller::{update_camera_controller, CameraController},
     input::{update_movement_input, PlayerInput},
-    player_movement::update_movement,
+    player_movement::player_movement_system,
     player_shooting::{update_player, TracerSpawnSpot},
     tracer::TracerPlugin,
     utils::blender_to_world
@@ -265,7 +265,7 @@ impl Plugin for PlayerPlugin {
         app.add_plugins(TracerPlugin)
             .init_resource::<PlayerInput>()
             .add_systems(Startup, init_player)
-            .add_systems(FixedUpdate, update_movement)
+            .add_systems(FixedUpdate, player_movement_system)
             .add_systems(Update, update_movement_input)
             .add_systems(Update, update_camera_controller);
             // .add_systems(Update, update_player);
@@ -288,11 +288,12 @@ fn init_player(mut commands: Commands, asset_server: Res<AssetServer>) {
         .spawn((
             Camera3d::default(),
             Transform::from_xyz(0.0, CAMERA_HEIGHT, 0.0).looking_to(Vec3::X, Vec3::Y),
-            CameraController {
-                sensitivity: 0.035,
-                rotation: Vec2::ZERO,
-                rotation_lock: 88.0,
-            },
+            CameraController::default(),
+            // CameraController {
+            //     sensitivity: 0.035,
+            //     rotation: Vec2::ZERO,
+            //     rotation_lock: 88.0,
+            // },
         ))
         .id();
 
@@ -320,7 +321,7 @@ fn init_player(mut commands: Commands, asset_server: Res<AssetServer>) {
         .spawn((
             Player {
                 velocity: Vec3::ZERO,
-                gravity: 0.0,
+                gravity: 9.8,
                 speed: 20.0,
             },
             Transform::from_translation(Vec3::new(0., CAMERA_HEIGHT, 0.)),
