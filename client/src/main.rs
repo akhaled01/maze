@@ -37,7 +37,6 @@ fn main() {
             }),
             RapierPhysicsPlugin::<NoUserData>::default(),
             PlayerPlugin,
-            TracerPlugin,
         ))
         // .init_resource::<FireCooldown>()
         .insert_resource(TimestepMode::Fixed {

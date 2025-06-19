@@ -267,8 +267,8 @@ impl Plugin for PlayerPlugin {
             .add_systems(Startup, init_player)
             .add_systems(FixedUpdate, update_movement)
             .add_systems(Update, update_movement_input)
-            .add_systems(Update, update_camera_controller)
-            .add_systems(Update, update_player);
+            .add_systems(Update, update_camera_controller);
+            // .add_systems(Update, update_player);
     }
 }
 
@@ -287,7 +287,7 @@ fn init_player(mut commands: Commands, asset_server: Res<AssetServer>) {
     let camera_entity = commands
         .spawn((
             Camera3d::default(),
-            Transform::from_xyz(0.0, 0.0, 0.0).looking_to(Vec3::X, Vec3::Y),
+            Transform::from_xyz(0.0, CAMERA_HEIGHT, 0.0).looking_to(Vec3::X, Vec3::Y),
             CameraController {
                 sensitivity: 0.035,
                 rotation: Vec2::ZERO,
@@ -297,7 +297,7 @@ fn init_player(mut commands: Commands, asset_server: Res<AssetServer>) {
         .id();
 
     // Gun model
-    let gun_model = asset_server.load("models/ak.glb#Scene0");
+    let gun_model = asset_server.load("models/weapon/ak.glb#Scene0");
     // let gun_entity = commands
     //     .spawn((
     //         SceneRoot(gun_model),
@@ -320,7 +320,7 @@ fn init_player(mut commands: Commands, asset_server: Res<AssetServer>) {
         .spawn((
             Player {
                 velocity: Vec3::ZERO,
-                gravity: 9.8,
+                gravity: 0.0,
                 speed: 20.0,
             },
             Transform::from_translation(Vec3::new(0., CAMERA_HEIGHT, 0.)),
@@ -340,12 +340,12 @@ fn init_player(mut commands: Commands, asset_server: Res<AssetServer>) {
             SceneRoot(gun_model),
             Transform::IDENTITY,
             Name::new("Gun"),
-        )).id();
+        ));
         parent.spawn((
             Transform::from_translation(spawn_spot),
             TracerSpawnSpot,
             Name::new("Tracer Spawn Spot"),
-        )).id();
+        ));
     });
     commands.entity(player_entity).add_child(camera_entity);
 }
